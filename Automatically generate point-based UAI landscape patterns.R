@@ -1,4 +1,4 @@
-###林分模拟抚育
+###Function
 Near.f=function(x0,y0,data1){
   x1=abs(data1$x-x0); y1=abs(data1$y-y0)
   dis=sqrt(x1*x1+y1*y1)
@@ -2115,6 +2115,7 @@ print(runningtime)
 ovlapwt = st_sf(ovlap)
 ovlapwt =ovlapwt[,-2]
 sf::st_write(ovlapwt, "ovlapwt67.shp")
+
 
 
 
