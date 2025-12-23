@@ -757,7 +757,7 @@ print(runningtime)
 
 
 
-###Automatically Caclulate tree-based UAI,this process takes about 1 hour
+###Automatically Caclulate point-based UAI,this process takes about 1 hour
 timestart = Sys.time()
 for(i in 1:length(flist[,1])){
 ####Determination of the four vertices of a quadrilateral
@@ -2115,6 +2115,7 @@ print(runningtime)
 ovlapwt = st_sf(ovlap)
 ovlapwt =ovlapwt[,-2]
 sf::st_write(ovlapwt, "ovlapwt67.shp")
+
 
 
 
