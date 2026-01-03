@@ -1,4 +1,4 @@
-###Function
+###林分模拟抚育
 Near.f=function(x0,y0,data1){
   x1=abs(data1$x-x0); y1=abs(data1$y-y0)
   dis=sqrt(x1*x1+y1*y1)
@@ -152,6 +152,157 @@ circle=function(x,y){
   }
 }
 
+st_ends_heading <- function(line){
+  M <- sf::st_coordinates(line)
+  i <- c(2, nrow(M) - 1)
+  j <- c(1, -1)
+  
+  headings <- mapply(i, j, FUN = function(i, j) {
+    Ax <- M[i-j,1]
+    Ay <- M[i-j,2]
+    Bx <- M[i,1]
+    By <- M[i,2]
+    unname(atan2(Ay-By, Ax-Bx))
+  })
+  
+  return(headings)
+}
+
+st_extend_line <- function(line, distance, end = "BOTH"){
+  if (!(end %in% c("BOTH", "HEAD", "TAIL")) | length(end) != 1) stop("'end' must be 'BOTH', 'HEAD' or 'TAIL'")
+  
+  M <- sf::st_coordinates(line)[,1:2]
+  keep <- end == c("TAIL", "HEAD")
+  ends <- c(1, nrow(M))[keep]
+  headings <- st_ends_heading(line)[keep]
+  distances <- if (length(distance) == 1) rep(distance, 2) else rev(distance[1:2])
+  
+  M[ends,] <- M[ends,] + distances[keep] * c(cos(headings), sin(headings))
+  newline <- sf::st_linestring(M)
+  
+  # If input is sfc_LINESTRING and not sfg_LINESTRING
+  if (is.list(line)) newline <- sf::st_sfc(newline, crs = sf::st_crs(line))
+  
+  return(newline)
+}
+
+ptincerts2V=function(pintpair){
+  deltax = pintpair[1,1]-pintpair[2,1]
+  deltay = pintpair[1,2]-pintpair[2,2]
+  k=deltay/deltax
+  b=pintpair[1,2]-(pintpair[1,1]*k)
+  if(abs(deltax)<0.00001){
+    LP=c(pintpair[1,1],-1000)
+    RP=c(pintpair[1,1],1000)
+  }
+  if(abs(deltay)<0.00001){
+    LP=c(-1000,pintpair[1,2])
+    RP=c(1000,pintpair[1,2])
+  }
+  if(abs(deltay)>0.0001&abs(deltax)>0.0001){
+    if(k>0){
+      RP=c(1000,1000*k+b)
+      LP=c(-1000,-1000*k+b)
+    }else{
+      RP=c(-1000,-1000*k+b)
+      LP=c(1000,1000*k+b)
+    }
+  }
+  ptincerts=rbind(LP,RP)
+}
+
+ptincerts2H=function(pintpair){
+  deltax = pintpair[1,1]-pintpair[2,1]
+  deltay = pintpair[1,2]-pintpair[2,2]
+  k=deltay/deltax
+  b=pintpair[1,2]-(pintpair[1,1]*k)
+  if(abs(deltax)<0.00001){
+    LP=c(pintpair[1,1],-1000)
+    RP=c(pintpair[1,1],1000)
+  }
+  if(abs(deltay)<0.00001){
+    LP=c(-1000,pintpair[1,2])
+    RP=c(1000,pintpair[1,2])
+  }
+  if(abs(deltay)>0.0001&abs(deltax)>0.0001){
+    if(pintpair[2,2]<pintpair[1,2]){
+      if(k>0){
+        RP=c(1000,1000*k+b)
+        LP=c(-1000,-1000*k+b)
+      }else{
+        RP=c(-1000,-1000*k+b)
+        LP=c(1000,1000*k+b)
+      }
+    }else if(pintpair[2,2]>pintpair[1,2]){
+      if(k<0){
+        RP=c(1000,1000*k+b)
+        LP=c(-1000,-1000*k+b)
+      }else{
+        RP=c(-1000,-1000*k+b)
+        LP=c(1000,1000*k+b)
+      }
+    }
+  }
+  ptincerts=rbind(LP,RP)
+}
+
+ptincerts1L=function(pintpair){
+  deltax = pintpair[1,1]-pintpair[2,1]
+  deltay = pintpair[1,2]-pintpair[2,2]
+  k=deltay/deltax
+  b=pintpair[1,2]-(pintpair[1,1]*k)
+  if(abs(deltax)<0.00001){
+    LP=c(pintpair[1,1],1000)
+    RP=c(pintpair[1,1],-1000)
+  }
+  if(abs(deltay)<0.00001){
+    LP=c(-1000,pintpair[1,2])
+    RP=c(1000,pintpair[1,2])
+  }
+  if(abs(deltay)>0.0001&abs(deltax)>0.0001){
+    if(pintpair[2,2]<pintpair[1,2]){
+      if(k>0){
+        RP=c(1000,1000*k+b)
+        LP=c(-1000,-1000*k+b)
+      }else{
+        RP=c(-1000,-1000*k+b)
+        LP=c(1000,1000*k+b)
+      }
+    }else if(pintpair[2,2]>pintpair[1,2]){
+      if(k<0){
+        RP=c(1000,1000*k+b)
+        LP=c(-1000,-1000*k+b)
+      }else{
+        RP=c(-1000,-1000*k+b)
+        LP=c(1000,1000*k+b)
+      }
+    }
+  }
+  ptincerts=rbind(LP,RP)
+}
+
+ptincerts1R=function(pintpair){
+  deltax = pintpair[1,1]-pintpair[2,1]
+  deltay = pintpair[1,2]-pintpair[2,2]
+  k=deltay/deltax
+  b=pintpair[1,2]-(pintpair[1,1]*k)
+  if(abs(deltax)<0.00001){
+    LP=c(pintpair[1,1],1000)
+    RP=c(pintpair[1,1],-1000)
+  }
+  if(abs(deltay)<0.00001){
+    LP=c(-1000,pintpair[1,2])
+    RP=c(1000,pintpair[1,2])
+  }
+  if(abs(deltay)>0.0001&abs(deltax)>0.0001){
+    RP=c(1000,1000*k+b)
+    LP=c(-1000,-1000*k+b)
+  }
+  ptincerts=rbind(LP,RP)
+}
+
+
+
 ptincerts3V=function(pintpair1,pintpair2){
   fit1 <- lm(y~x,data = pintpair1)
   fit2 <- lm(y~x,data = pintpair2)
@@ -241,6 +392,96 @@ ptincerts3H=function(pintpair1,pintpair2){
   }
 }
 
+typecheck=function(pintpair1,pintpair2){
+  fit1 <- lm(y~x,data = pintpair1)
+  fit2 <- lm(y~x,data = pintpair2)
+  coef1 = coef(fit1)
+  coef2 = coef(fit2)
+  coef1[is.na(coef1)] <- 0
+  coef2[is.na(coef2)] <- 0
+  RUCHECK=pintpair2[1,1]*coef1[2]+coef1[1]
+  LDCHECK=pintpair2[2,1]*coef1[2]+coef1[1]
+  LUCHECK=(pintpair1[1,2]-coef2[1])/coef2[2]
+  RDCHECK=(pintpair1[2,2]-coef2[1])/coef2[2]
+  if(coef1[2]>0){
+    RUJUG=RUCHECK<pintpair2[1,2]
+    LDJUG=LDCHECK>pintpair2[2,2]
+  }else if(coef1[2]<0){
+    RUJUG=RUCHECK<pintpair2[1,2]
+    LDJUG=LDCHECK>pintpair2[2,2]
+  }
+  if(abs(coef1[2])<0.00000001){
+    RUCHECK=pintpair1[1,1]
+    LDCHECK=pintpair1[2,1]
+    if(is.na(coef(fit1)[2])){
+      RUJUG=pintpair2[1,1]>pintpair1[1,1]
+      LDJUG=pintpair2[2,1]<pintpair1[2,1] 
+    }else{
+      RUJUG=RUCHECK<pintpair2[1,1]
+      LDJUG=LDCHECK>pintpair2[2,1]}
+  }
+  if(coef2[2]>0){
+    LUJUG=LUCHECK>pintpair1[1,1]
+    RDJUG=RDCHECK<pintpair1[2,1]
+  }else if(coef2[2]<0){
+    LUJUG=LUCHECK>pintpair1[1,1]
+    RDJUG=RDCHECK<pintpair1[2,1]
+  }
+  if(abs(coef2[2])<0.00000001){
+    LUCHECK=pintpair2[1,1]
+    RDCHECK=pintpair2[2,1]
+    if(is.na(coef(fit2)[2])){
+      LUJUG=pintpair1[1,1]<pintpair2[1,1]
+      RDJUG=pintpair1[2,1]>pintpair2[2,1] 
+    }else{
+      LUJUG=pintpair1[1,2]>pintpair1[1,2]
+      RDJUG=pintpair1[2,2]<pintpair1[2,2]}
+  }
+  JUG=c(RUJUG,LDJUG,LUJUG,RDJUG)
+}
+
+Anglexaxis=function(xi,yi){
+  if (yi>0 &xi>=0) {Angle=atan(yi/xi)/pi*180} else
+    if (abs(yi)<0.0000001 &xi>=0) {Angle=0} else
+      if (yi<=0 &xi>=0) {Angle=360+atan(yi/xi)/pi*180} else
+        if (yi<0 &xi<0) {Angle=180+atan(yi/xi)/pi*180} else
+          if (abs(yi)<0.0000001 &xi<0) {Angle=180} else 
+            if (yi<0 &abs(xi)<0.0000001) {Angle=270} else
+              if (yi>0 &abs(xi)<0.0000001) {Angle=90} else
+              {Angle=180+atan(yi/xi)/pi*180}
+  Angle
+}
+
+ptV=function(pintpair){
+  deltax = pintpair[1,1]-pintpair[2,1]
+  deltay = pintpair[1,2]-pintpair[2,2]
+  k=deltay/deltax
+  b=pintpair[1,2]-(pintpair[1,1]*k)
+  if(abs(deltax)<0.00001){
+    UP=c(pintpair[1,1],1000)
+    DP=c(pintpair[1,1],-1000)
+  }else{
+    if(abs(deltax)>=abs(deltay)){
+      k=deltay/deltax
+      b=pintpair[1,2]-(pintpair[1,1]*k)
+      LP=c(-1000,-1000*k+b)
+      RP=c(1000,1000*k+b)
+      ptincerts=rbind(LP,RP)
+    }else{
+      if(k>0){
+        UP=c(1000,1000*k+b)
+        DP=c(-1000,-1000*k+b) 
+      }else{
+        DP=c(1000,1000*k+b)
+        UP=c(-1000,-1000*k+b)
+      }
+      ptincerts=rbind(UP,DP) 
+    }
+    
+  }
+  
+}
+
 extend_point <- function(A, B, distance = 10000) {
   # 输入：
   # A: 点A的坐标，c(x_A, y_A)
@@ -302,6 +543,80 @@ is_convex_quadrilateral <- function(points) {
   }
 }
 
+
+
+move_points_to_centroid <- function(points) {
+  # 输入假设：points 是一个 4x2 的矩阵，每行是一个点的 (x, y) 坐标
+  # 计算重心：x 和 y 坐标的平均值
+  centroid <- c(median(points[,1]),median(points[,2]))
+  
+  # 计算每个点到重心的欧几里得距离
+  distances <- sqrt(rowSums((points - centroid)^2))
+  
+  # 找到最小距离
+  min_dist <- min(distances)
+  
+  # 初始化新点坐标矩阵
+  new_points <- points
+  
+  # 对每个点进行移动
+  for (i in 1:4) {
+    if (distances[i] > 0) {  # 仅对不在重心的点进行移动
+      # 计算单位方向向量：从点指向重心
+      direction <- (centroid - points[i, ]) / distances[i]
+      # 新位置 = 原位置 + 最小距离 * 方向向量
+      new_points[i, ] <- points[i, ] + min_dist * direction
+    }
+  }
+  
+  # 返回新点的坐标
+  return(new_points)
+}
+
+sort_points_clockwise <- function(df) {
+  # 输入：包含四行x,y坐标的data.frame
+  # 输出：按顺时针排序的同结构data.frame
+  
+  # 计算几何中心
+  centroid <- c(mean(df$x), mean(df$y))
+  
+  # 计算相对极角（弧度）
+  calc_angle <- function(point) {
+    dx <- as.numeric(point[1]) - centroid[1]
+    dy <- as.numeric(point[2]) - centroid[2]
+    atan2(dy, dx)  # 计算结果范围：-π到π
+  }
+  
+  # 添加临时极角列
+  df$polar_angle <- apply(df, 1, calc_angle)
+  
+  # 按极角逆时针排序（默认排序方向）
+  ordered_df <- df[order(-df$polar_angle), ]  # 负号实现降序排列
+  
+  # 计算有符号面积验证方向
+  signed_area <- 0
+  n <- nrow(ordered_df)
+  for (i in 1:n) {
+    x_i <- ordered_df$x[i]
+    y_i <- ordered_df$y[i]
+    x_next <- ordered_df$x[i %% n + 1]
+    y_next <- ordered_df$y[i %% n + 1]
+    signed_area <- signed_area + (x_i * y_next - x_next * y_i)
+  }
+  
+  # 调整顺时针方向（当面积为正时反转排序）
+  if (signed_area > 0) {
+    ordered_df <- ordered_df[c(1, n:2), ]
+  }
+  
+  # 清理临时列并重置索引
+  ordered_df$polar_angle <- NULL
+  rownames(ordered_df) <- NULL
+  
+  return(ordered_df)
+}
+
+
 st_voronoi_point <- function(points){
   ## points must be POINT geometry
   # check for point geometry and execute if true
@@ -314,9 +629,296 @@ st_voronoi_point <- function(points){
   return(v[unlist(st_intersects(points, v))])
 }
 
+
+
+correct_to_rectangle <- function(df) {
+  # 输入：四行数据框，包含 x, y 坐标（按顺序排列的平行四边形顶点）
+  # 输出：校正后的矩形坐标（保留原始数据）
+  
+  # 定义原始坐标
+  A <- unlist(df[1, c("x", "y")])
+  B <- unlist(df[2, c("x", "y")])
+  C <- unlist(df[3, c("x", "y")])
+  D <- unlist(df[4, c("x", "y")])
+  
+  # 定义优化目标函数
+  objective <- function(shift) {
+    sum(shift^2)  # 最小化总平移量
+  }
+  
+  # 定义非线性约束
+  constraint <- function(shift) {
+    # 解包位移向量（dxA, dyA, dxB, dyB, dxC, dyC, dxD, dyD）
+    shifts <- matrix(shift, ncol = 2, byrow = TRUE)
+    
+    # 计算新坐标
+    A_new <- A + shifts[1, ]
+    B_new <- B + shifts[2, ]
+    C_new <- C + shifts[3, ]
+    D_new <- D + shifts[4, ]
+    
+    # 矩形约束条件
+    vec_AB <- B_new - A_new
+    vec_AD <- D_new - A_new
+    vec_BC <- C_new - B_new
+    
+    # 正交性约束
+    ortho <- sum(vec_AB * vec_AD)
+    
+    # 长度相等约束
+    len_AB <- sqrt(sum(vec_AB^2))
+    len_AD <- sqrt(sum(vec_AD^2))
+    len_BC <- sqrt(sum(vec_BC^2))
+    
+    return(c(
+      ortho,          # 正交性约束 (应为0)
+      len_AB - len_AD, # 邻边长度相等 (应为0)
+      len_BC - len_AD  # 对边长度相等 (应为0)
+    ))
+  }
+  
+  # 优化参数设置
+  opts <- list(
+    "algorithm" = "NLOPT_LN_AUGLAG",
+    "xtol_rel" = 1e-6,
+    "maxeval" = 1000,
+    "local_opts" = list("algorithm" = "NLOPT_LN_COBYLA", "xtol_rel" = 1e-6)
+  )
+  
+  # 初始猜测（零位移）
+  init_shift <- rep(0, 8)
+  
+  # 运行优化
+  solution <- nloptr(
+    x0 = init_shift,
+    eval_f = objective,
+    eval_g_ineq = NULL,
+    eval_g_eq = constraint,
+    opts = opts,
+    lb = rep(-Inf, 8),
+    ub = rep(Inf, 8)
+  )
+  
+  # 提取最优解
+  optimal_shifts <- matrix(solution$solution, ncol = 2, byrow = TRUE)
+  
+  # 生成结果数据框
+  result <- data.frame(
+    orig_x = df$x,
+    orig_y = df$y,
+    new_x = df$x + optimal_shifts[,1],
+    new_y = df$y + optimal_shifts[,2]
+  )
+  
+  return(result)
+}
+
+
+
+# 函数：将凸四边形的四个点变换为矩形
+# 输入：points，一个4x2矩阵，每行是一个点的x和y坐标
+# 输出：变换后的4x2矩阵，表示矩形
+transform_to_rectangle <- function(points) {
+  # 检查输入是否为4个点
+  if (nrow(points) != 4 || ncol(points) != 2) {
+    stop("输入必须为4x2矩阵")
+  }
+  
+  # 第一步：计算重心
+  centroid <- colMeans(points)
+  
+  # 第二步：计算相对于重心的角度并顺时针排序
+  angles <- atan2(points[, 2] - centroid[2], points[, 1] - centroid[1])
+  order_idx <- order(angles, decreasing = TRUE)
+  points_ordered <- points[order_idx, ]
+  
+  # 第三步：计算四条边的斜率
+  slopes <- numeric(4)
+  for (i in 1:4) {
+    p1 <- points_ordered[i, ]
+    p2 <- points_ordered[if (i == 4) 1 else i + 1, ]
+    dx <- p2[1] - p1[1]
+    dy <- p2[2] - p1[2]
+    slopes[i] <- if (dx == 0) Inf else dy / dx
+  }
+  
+  # 找到斜率绝对值最小的边
+  min_slope_idx <- which.min(abs(unlist(slopes)))
+  
+  # 重新排序，使该边成为p1-p2
+  if (min_slope_idx == 1) {
+    points_reordered <- points_ordered
+  } else if (min_slope_idx == 2) {
+    points_reordered <- points_ordered[c(2, 3, 4, 1), ]
+  } else if (min_slope_idx == 3) {
+    points_reordered <- points_ordered[c(3, 4, 1, 2), ]
+  } else {
+    points_reordered <- points_ordered[c(4, 1, 2, 3), ]
+  }
+  
+  # 定义旋转函数
+  rotate <- function(point, center, angle) {
+    dx <- point[1] - center[1]
+    dy <- point[2] - center[2]
+    new_x <- center[1] + dx * cos(angle) - dy * sin(angle)
+    new_y <- center[2] + dx * sin(angle) + dy * cos(angle)
+    c(new_x, new_y)
+  }
+  
+  # 计算旋转角度，使p1-p2水平
+  p1 <- unlist(points_reordered[1, ])
+  p2 <- unlist(points_reordered[2, ])
+  theta <- atan2(p2[2] - p1[2], p2[1] - p1[1])
+  phi <- -theta
+  
+  # 旋转所有点
+  points_rotated <- t(sapply(1:4, function(i) rotate(points_reordered[i, ], p1, phi)))
+  
+  # 获取旋转后的点
+  p1_rot <- unlist(points_rotated[1, ])
+  p2_rot <- unlist(points_rotated[2, ])
+  p3_rot <- unlist(points_rotated[3, ])
+  p4_rot <- unlist(points_rotated[4, ])
+  
+  # 第四步：调整p3和p4形成矩形
+  y1 <- (p3_rot[2] + p4_rot[2]) / 2  # p3和p4的y坐标平均值
+  p3_final <- c(p2_rot[1], y1)       # p3的x与p2对齐
+  p4_final <- c(p1_rot[1], y1)       # p4的x与p1对齐
+  
+  # 返回最终的矩形点
+  points_final <- rbind(p1_rot, p2_rot, p3_final, p4_final)
+  return(points_final)
+}
+
+
 getmode <- function(v) {
   uniqv <- unique(v)
   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+mirror_point <- function(A, B, P) {
+  # 验证输入格式
+  if (!all(sapply(list(A,B,P), length) == 2) || 
+      !all(sapply(list(A,B,P), is.numeric))) {
+    stop("输入必须为数值向量，格式：c(x,y)")
+  }
+  
+  # 计算向量AB和AP
+  AB <- B - A
+  AP <- P - A
+  
+  # 检查直线有效性
+  if (all(AB == 0)) {
+    stop("点A和B重合，无法构成直线")
+  }
+  
+  # 计算投影参数
+  t <- sum(AB * AP) / sum(AB^2)
+  
+  # 计算投影点
+  projection <- A + t * AB
+  
+  # 计算对称点
+  Q <- 2 * projection - P
+  
+  return(round(Q, 2))  # 保留6位小数消除浮点误差
+}
+
+# 辅助函数：计算两向量的夹角（弧度）
+angle_between_vectors <- function(v1, v2) {
+  dot_product <- sum(v1 * v2)
+  norm_v1 <- sqrt(sum(v1^2))
+  norm_v2 <- sqrt(sum(v2^2))
+  cos_theta <- dot_product / (norm_v1 * norm_v2)
+  cos_theta <- max(min(cos_theta, 1), -1)  # 防止浮点误差
+  theta <- acos(cos_theta)
+  return(theta)
+}
+
+# 辅助函数：判断内角是否为凹角
+is_concave_angle <- function(p1, p2, p3) {
+  v1 <- p1 - p2
+  v2 <- p3 - p2
+  theta <- angle_between_vectors(v1, v2)
+  # 计算叉积以判断转向
+  cross_product <- v1[1] * v2[2] - v1[2] * v2[1]
+  if (cross_product < 0) {
+    theta <- 2 * pi - theta
+  }
+  return(theta > pi)
+}
+
+# 辅助函数：计算两条直线的交点
+line_intersection <- function(line1, line2) {
+  p1 <- line1[1, ]
+  p2 <- line1[2, ]
+  p3 <- line2[1, ]
+  p4 <- line2[2, ]
+  
+  denom <- (p4[2] - p3[2]) * (p2[1] - p1[1]) - (p4[1] - p3[1]) * (p2[2] - p1[2])
+  if (denom == 0) {
+    stop("Lines are parallel and do not intersect.")
+  }
+  
+  ua <- ((p4[1] - p3[1]) * (p1[2] - p3[2]) - (p4[2] - p3[2]) * (p1[1] - p3[1])) / denom
+  intersection <- unlist(p1) + unlist(ua) * unlist(p2 - p1)
+  return(intersection)
+}
+
+# 主函数：将凹四边形转换为凸四边形
+convert_to_convex_quadrilateral <- function(points) {
+  if (nrow(points) != 4 || ncol(points) != 2) {
+    stop("Input must be a 4x2 matrix of points.")
+  }
+  
+  # 识别凹角
+  concave_index <- NULL
+  for (i in 1:4) {
+    p1 <- points[i, ]
+    p2 <- points[(i %% 4) + 1, ]
+    p3 <- points[(i + 1) %% 4 + 1, ]
+    if (is_concave_angle(p1, p2, p3)) {
+      concave_index <- (i %% 4) + 1
+      break
+    }
+  }
+  
+  # 凹角相邻的点
+  prev_index <- if (concave_index == 1) 4 else concave_index - 1
+  next_index <- if (concave_index == 4) 1 else concave_index + 1
+  last_index <- setdiff(c(1,2,3,4),c(prev_index,next_index,concave_index))
+  prev_point <- points[prev_index, ]
+  concave_point <- points[concave_index, ]
+  next_point <- points[next_index, ]
+  last_point <- points[last_index, ]
+  # 定义两条直线并计算交点
+  line1 <- rbind(prev_point, concave_point)
+  line2 <- rbind(last_point, next_point)
+  intersection_next <- line_intersection(line1, line2)
+  line3 <- rbind(next_point, concave_point)
+  line4 <- rbind(last_point, prev_point)
+  intersection_prev <- line_intersection(line3, line4)
+  # 形成新四边形
+  new_points <- points
+  new_points[prev_index, ] <- intersection_prev
+  new_points[next_index, ] <- intersection_next
+  
+  return(new_points)
+}
+
+
+compare_strings <- function(str1, str2) {
+  
+  # 将字符串拆分为单个字符
+  chars1 <- strsplit(str1, "")[[1]]
+  chars2 <- strsplit(str2, "")[[1]]
+  
+  # 检查差异位置
+  if (chars1[1] != chars2[1]) {
+    return(TRUE)
+  } else if (chars1[2] != chars2[2]) {
+    return(FALSE)
+  }
 }
 
 assign_direction <- function(df,row_index, medianx,mediany, pastlabel, condition) {
@@ -344,9 +946,59 @@ assign_direction <- function(df,row_index, medianx,mediany, pastlabel, condition
   return(df)
 }
 
+
+
+
+
+
 which.median <- function(x){
   which.min(abs(x - median(x)))
 } 
+
+find_concave_vertex <- function(points) {
+  # points: 一个4行2列的数据框或矩阵，每行是一个顶点的坐标，按顺时针顺序排列
+  # 列顺序为x坐标和y坐标
+  
+  # 确保输入为4个点
+  if (nrow(points) != 4) {
+    stop("输入必须包含4个顶点")
+  }
+  
+  # 为每个点计算叉积
+  cross_products <- numeric(4)
+  
+  for (i in 1:4) {
+    # 获取当前点、前一个点和后一个点
+    prev_index <- ifelse(i == 1, 4, i - 1)
+    next_index <- ifelse(i == 4, 1, i + 1)
+    
+    A <- points[prev_index, ]
+    B <- points[i, ]
+    C <- points[next_index, ]
+    
+    # 计算向量AB = (dx1, dy1) 和 BC = (dx2, dy2)
+    dx1 <- B[1] - A[1]
+    dy1 <- B[2] - A[2]
+    dx2 <- C[1] - B[1]
+    dy2 <- C[2] - B[2]
+    
+    # 计算叉积: AB x BC = (dx1 * dy2 - dy1 * dx2)
+    cross_products[i] <- dx1 * dy2 - dy1 * dx2
+  }
+  
+  # 在凹四边形中，凹点处的叉积应为正数，其余点为负数
+  concave_index <- which(cross_products > 0)
+  
+  # 检查是否找到凹点
+  if (length(concave_index) == 0) {
+    stop("未找到凹点，请检查输入是否为凹四边形且顶点按顺时针排序")
+  } else if (length(concave_index) > 1) {
+    stop("找到多个凹点，输入可能不是简单凹四边形")
+  }
+  
+  return(concave_index)
+}
+
 
 label_confirm <- function(df,rep1label1,rep1label2,rep2label1,rep2label2,meanx, meany) {
   pastelab1=paste(rep1label1,rep1label2, sep = "")
@@ -505,6 +1157,7 @@ detect_concave_quad <- function(points) {
 
 library(terra)
 library(sp)
+library(rgeos)
 library(sf)
 library(tidyverse)
 library(tigris)
@@ -517,6 +1170,7 @@ library(dplyr)
 library(purrr)
 library(tibble)
 library(pracma)
+library(ReinforcementLearning)
 library(combinat)
 library(nloptr)
 library(sqldf)
@@ -546,12 +1200,8 @@ cb = data.frame()
 Polyunionfin=list()
 tempx=c()
 tempy=c()
-local=data1[1:4,]
-known.pair=matrix(nrow = 2,ncol = 2)
+
 ####Define 3 sets,upper left(LU), lower left (LD), upper right (RU), and lower right (RD)
-group1=matrix(nrow = 4,ncol = 2)
-group2=matrix(nrow = 4,ncol = 2)
-group3=matrix(nrow = 4,ncol = 2)
 group1[1,1]="LD"
 group1[1,2]="RD"
 group1[2,1]="LU"
@@ -584,7 +1234,7 @@ for (i in 1:length(data3$x)){
   x0=data3[i,]$x;y0=data3[i,]$y
   Near5=Near.f(x0,y0,data3)[1:5,]
   Near4=Near5[2:5,]
-  data3$W[i]=w.f(x0,y0,Near4$x,Near4$y) #function 4
+  data31$W[i]=w.f(x0,y0,Near4$x,Near4$y) #function 4
 }
 data3=data3[data3$x>buff&data3$x<28,]
 data3=data3[data3$y>buff&data3$y<18,]
@@ -757,7 +1407,7 @@ print(runningtime)
 
 
 
-###Automatically Caclulate point-based UAI,this process takes about 1 hour
+###Automatically Caclulate tree-based UAI,this process takes about 1 hour
 timestart = Sys.time()
 for(i in 1:length(flist[,1])){
 ####Determination of the four vertices of a quadrilateral
@@ -1160,7 +1810,7 @@ for(i in 1:length(flist[,1])){
         hull_points[which.max(hull_points$LDindex),7]="LD"
         hull_points[which.max(hull_points$RUindex),7]="RU"
         hull_points[which.max(hull_points$RDindex),7]="RD"
-        concave_point[,3:6] <- hull_points[1,3:6]#避免出现空洞
+        concave_point[,3:6] <- hull_points[1,3:6]#avoid error
         maxindex1=c(which.max(hull_points$LUindex),which.max(hull_points$RUindex),which.max(hull_points$LDindex),which.max(hull_points$RDindex))
         lookupvec=c("LU","RU","LD","RD")
         if(length(unique(maxindex1))==3){
@@ -2114,9 +2764,7 @@ print(runningtime)
 #####Exporting vector results of point-based UAI
 ovlapwt = st_sf(ovlap)
 ovlapwt =ovlapwt[,-2]
-sf::st_write(ovlapwt, "ovlapwt67.shp")
-
-
+sf::st_write(ovlapwt, "ovlapwt70.shp")
 
 
 
