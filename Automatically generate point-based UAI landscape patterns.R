@@ -1,6 +1,4 @@
 ###Custom functions
-
-####five functions used to caculate tree-based UAI
 Near.f=function(x0,y0,data1){
   x1=abs(data1$x-x0); y1=abs(data1$y-y0)
   dis=sqrt(x1*x1+y1*y1)
@@ -67,9 +65,8 @@ W.cluster=function(x0,y0,Near4){
   clusterNo=c(Near4o[Near4o$count==1,]$No)
   return(clusterNo)
 }
-##########end of tree-based UAI function
 
-####functions used to caculate double-arc
+
 circle=function(x,y){
   point1=x
   point2=y
@@ -155,7 +152,6 @@ circle=function(x,y){
   }
 }
 
-#######functions used to point-based UAI 
 st_ends_heading <- function(line){
   M <- sf::st_coordinates(line)
   i <- c(2, nrow(M) - 1)
@@ -487,6 +483,11 @@ ptV=function(pintpair){
 }
 
 extend_point <- function(A, B, distance = 10000) {
+  # 输入：
+  # A: 点A的坐标，c(x_A, y_A)
+  # B: 点B的坐标，c(x_B, y_B)
+  # distance: 延长距离，默认为10000米
+  # 输出：点C的坐标，c(x_C, y_C)
   
   # 计算向量AB
   AB <- B - A
@@ -545,7 +546,8 @@ is_convex_quadrilateral <- function(points) {
 
 
 move_points_to_centroid <- function(points) {
-  
+  # 输入假设：points 是一个 4x2 的矩阵，每行是一个点的 (x, y) 坐标
+  # 计算重心：x 和 y 坐标的平均值
   centroid <- c(median(points[,1]),median(points[,2]))
   
   # 计算每个点到重心的欧几里得距离
@@ -572,7 +574,9 @@ move_points_to_centroid <- function(points) {
 }
 
 sort_points_clockwise <- function(df) {
-   
+  # 输入：包含四行x,y坐标的data.frame
+  # 输出：按顺时针排序的同结构data.frame
+  
   # 计算几何中心
   centroid <- c(mean(df$x), mean(df$y))
   
@@ -628,7 +632,9 @@ st_voronoi_point <- function(points){
 
 
 correct_to_rectangle <- function(df) {
-    
+  # 输入：四行数据框，包含 x, y 坐标（按顺序排列的平行四边形顶点）
+  # 输出：校正后的矩形坐标（保留原始数据）
+  
   # 定义原始坐标
   A <- unlist(df[1, c("x", "y")])
   B <- unlist(df[2, c("x", "y")])
@@ -707,6 +713,11 @@ correct_to_rectangle <- function(df) {
   return(result)
 }
 
+
+
+# 函数：将凸四边形的四个点变换为矩形
+# 输入：points，一个4x2矩阵，每行是一个点的x和y坐标
+# 输出：变换后的4x2矩阵，表示矩形
 transform_to_rectangle <- function(points) {
   # 检查输入是否为4个点
   if (nrow(points) != 4 || ncol(points) != 2) {
@@ -936,6 +947,10 @@ assign_direction <- function(df,row_index, medianx,mediany, pastlabel, condition
 }
 
 
+
+
+
+
 which.median <- function(x){
   which.min(abs(x - median(x)))
 } 
@@ -983,6 +998,7 @@ find_concave_vertex <- function(points) {
   
   return(concave_index)
 }
+
 
 label_confirm <- function(df,rep1label1,rep1label2,rep2label1,rep2label2,meanx, meany) {
   pastelab1=paste(rep1label1,rep1label2, sep = "")
@@ -1032,6 +1048,9 @@ label_confirm <- function(df,rep1label1,rep1label2,rep2label1,rep2label2,meanx, 
   return(df)
 }
 
+# 函数：从四个点中找到最大面积三角形的三个点和剩余点，若最大三角形面积大于四边形面积，则返回最小面积三角形
+# 输入：points，一个4x2矩阵，每行是一个点的x和y坐标
+# 输出：列表，包含max_or_min_triangle_indices（面积最大或最小的三角形三个点行号）和remaining_index（剩余点的行号）
 find_max_triangle <- function(points) {
   # 检查输入是否为4x2矩阵
   if (nrow(points) != 4 || ncol(points) != 2) {
@@ -1388,7 +1407,7 @@ print(runningtime)
 
 
 
-###Automatically Caclulate tree-based UAI,this process takes about 1 hour
+###Automatically Caclulate tree-based UAI,this process takes about 3 hour
 timestart = Sys.time()
 for(i in 1:length(flist[,1])){
 ####Determination of the four vertices of a quadrilateral
@@ -1694,6 +1713,17 @@ for(i in 1:length(flist[,1])){
             local[grep("RU",local$V7),7]="LD"
             local[grep("ru",local$V7),7]="RU"
             local=rbind(local[grep("LU",local$V7),],local[grep("LD",local$V7),],local[grep("RD",local$V7),],local[grep("RU",local$V7),])
+          }else{
+            ccave=find_max_triangle(local[,1:2])
+            if(4-ccave==1){
+              local=rbind(local[4,],local[1:3,])
+            }
+            if(4-ccave==2){
+              local=rbind(local[3:4,],local[1:2,])
+            }
+            if(4-ccave==3){
+              local=rbind(local[2:4,],local[1,])
+            } 
           }
         }else{
           ccave=find_max_triangle(local[,1:2])
@@ -2745,12 +2775,6 @@ print(runningtime)
 #####Exporting vector results of point-based UAI
 ovlapwt = st_sf(ovlap)
 ovlapwt =ovlapwt[,-2]
-sf::st_write(ovlapwt, "ovlapwt70.shp")
-
-
-
-
-
-
+sf::st_write(ovlapwt, "ovlapwt71.shp")
 
 
